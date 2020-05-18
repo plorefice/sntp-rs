@@ -1,9 +1,15 @@
 [package]
-name = "sntp"
-version = "0.1.0"
-authors = ["Pietro Lorefice <pietro@develer.com>"]
+authors = ["Pietro Lorefice <pietro.lorefice@gmail.com>"]
+categories = ["embedded", "network-programming", "no-std"]
+description = "A Simple Network Time Protocol (SNTP) client implementation using smoltcp."
 edition = "2018"
-autoexamples = false
+homepage = "https://github.com/plorefice/sntp-rs"
+keywords = ["sntp", "network"]
+license = "MIT OR Apache-2.0"
+name = "sntp"
+readme = "README.md"
+repository = "https://github.com/plorefice/sntp-rs"
+version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
