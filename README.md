@@ -1,7 +1,7 @@
 # sntp-rs
 
-[![crates.io badge](https://img.shields.io/crates/v/dht11.svg)](https://crates.io/crates/dht11)
-[![docs.rs badge](https://docs.rs/dht11/badge.svg)](https://docs.rs/dht11)
+[![crates.io badge](https://img.shields.io/crates/v/sntp.svg)](https://crates.io/crates/sntp)
+[![docs.rs badge](https://docs.rs/sntp/badge.svg)](https://docs.rs/sntp)
 
 > A Simple Network Time Protocol (SNTP) client implementation using [`smoltcp`].
 
