@@ -6,10 +6,16 @@ use crate::net::{
 };
 use crate::wire::{LeapIndicator, Packet, ProtocolMode, Repr, Stratum, Timestamp};
 
-/// Default to one hour interval between requests.
-const REQUEST_INTERVAL: u64 = 60 * 60;
+/// Minimum interval between requests (defaults to one minute)
+const MIN_REQUEST_INTERVAL: Duration = Duration { millis: 60 * 1_000 };
 
-/// Number of seconds between 1970 and Feb 7, 2036 06:28:16 UTC (epoch 1)
+/// Maximum interval between requests (defaults to one day)
+const MAX_REQUEST_INTERVAL: Duration = Duration {
+    millis: 24 * 60 * 60 * 1_000,
+};
+
+/// Number of seconds between 1970 and Feb 7, 2036 06:28:16 UTC (epoch 1).
+/// Used for NTP to Unix timestamp conversion.
 const DIFF_SEC_1970_2036: u32 = 2085978496;
 
 /// IANA port for SNTP servers.
@@ -22,8 +28,10 @@ const SNTP_PORT: u16 = 123;
 pub struct Client {
     udp_handle: SocketHandle,
     ntp_server: IpAddress,
-    /// When to send next request
+    /// When to send next request.
     next_request: Instant,
+    /// Current timeout interval.
+    curr_interval: Duration,
 }
 
 impl Client {
@@ -81,6 +89,7 @@ impl Client {
             udp_handle,
             ntp_server,
             next_request: now,
+            curr_interval: MIN_REQUEST_INTERVAL,
         }
     }
 
@@ -108,24 +117,32 @@ impl Client {
 
         // Process incoming packets
         let timestamp = match socket.recv() {
-            Ok((payload, _)) => self.receive(payload, now),
+            Ok((payload, _)) => self.receive(payload),
             Err(Error::Exhausted) => None,
             Err(e) => return Err(e),
         };
 
-        if timestamp.is_some() {
-            Ok(timestamp)
-        } else {
-            // Send request if the timeout has expired
-            if socket.can_send() && now >= self.next_request {
-                self.request(&mut *socket, now)?;
+        match timestamp {
+            Some(ts) => {
+                // A valid timestamp was received.
+                // Increase the request interval to its maximum and return the timestamp.
+                self.next_request = now + MAX_REQUEST_INTERVAL;
+                Ok(Some(ts))
             }
-            Ok(None)
+            None if socket.can_send() && now >= self.next_request => {
+                // The timeout has expired.
+                // Send a request, set the timeout and increment interval using exponential backoff.
+                self.request(&mut *socket)?;
+                self.next_request = now + self.curr_interval;
+                self.curr_interval = MAX_REQUEST_INTERVAL.min(self.curr_interval * 2);
+                Ok(None)
+            }
+            None => Ok(None),
         }
     }
 
     /// Processes a response from the SNTP server.
-    fn receive(&mut self, data: &[u8], now: Instant) -> Option<u32> {
+    fn receive(&mut self, data: &[u8]) -> Option<u32> {
         let sntp_packet = match Packet::new_checked(data) {
             Ok(sntp_packet) => sntp_packet,
             Err(e) => {
@@ -149,8 +166,7 @@ impl Client {
             return None;
         }
         if sntp_repr.stratum == Stratum::KissOfDeath {
-            net_debug!("SNTP kiss o' death received, updating delay");
-            self.next_request = now + Duration::from_secs(REQUEST_INTERVAL);
+            net_debug!("SNTP kiss o' death received, doing nothing");
             return None;
         }
 
@@ -164,7 +180,7 @@ impl Client {
     }
 
     /// Sends a request to the configured SNTP ntp_server.
-    fn request(&mut self, socket: &mut UdpSocket, now: Instant) -> Result<()> {
+    fn request(&mut self, socket: &mut UdpSocket) -> Result<()> {
         let sntp_repr = Repr {
             leap_indicator: LeapIndicator::NoWarning,
             version: 4,
@@ -180,8 +196,6 @@ impl Client {
             recv_timestamp: Timestamp { sec: 0, frac: 0 },
             xmit_timestamp: Timestamp { sec: 0, frac: 0 },
         };
-
-        self.next_request = now + Duration::from_secs(REQUEST_INTERVAL);
 
         let endpoint = IpEndpoint {
             addr: self.ntp_server,
