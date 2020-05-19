@@ -1,5 +1,8 @@
 # sntp-rs
 
+[![crates.io badge](https://img.shields.io/crates/v/dht11.svg)](https://crates.io/crates/dht11)
+[![docs.rs badge](https://docs.rs/dht11/badge.svg)](https://docs.rs/dht11)
+
 > A Simple Network Time Protocol (SNTP) client implementation using [`smoltcp`].
 
 This crate has been developed with `#![no_std]` use in mind: it doesn't perform
