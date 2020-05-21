@@ -1,3 +1,9 @@
+# :warning: DEPRECATION WARNING! :warning:
+
+**This crate has been deprecated in favor of [smolapps], a collection of similar crates.**
+
+[smolapps]: https://github.com/plorefice/smolapps
+
 # sntp-rs
 
 [![crates.io badge](https://img.shields.io/crates/v/sntp.svg)](https://crates.io/crates/sntp)
